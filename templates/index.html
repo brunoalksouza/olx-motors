@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OLX Motors — Buscador</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.9s linear infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-5">
+      <h1 class="text-2xl font-bold text-slate-900 mb-4">OLX Motors</h1>
+      <form id="search-form" class="space-y-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <div class="relative flex-1">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"/>
+            </svg>
+            <input id="q" type="search" autofocus autocomplete="off"
+                   placeholder="Ex: Honda Civic, Yamaha Factor, Golf GTI..."
+                   class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <button id="btn-search" type="submit"
+                  class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition whitespace-nowrap">
+            Buscar
+          </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600 font-medium">Categoria:</span>
+            <div id="tipo-group" class="flex border border-slate-300 rounded-lg overflow-hidden">
+              <button type="button" data-tipo="ambos" class="tipo-btn px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium">Ambos</button>
+              <button type="button" data-tipo="carros" class="tipo-btn px-3 py-1.5 bg-white text-slate-600 border-l border-slate-300 text-xs">Carros</button>
+              <button type="button" data-tipo="motos" class="tipo-btn px-3 py-1.5 bg-white text-slate-600 border-l border-slate-300 text-xs">Motos</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600 font-medium">Estado:</span>
+            <select id="f-state" class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500">
+              {% for s in states %}
+              <option value="{{ s.code }}" {{ 'selected' if s.code == 'sp' }}>{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-slate-600 font-medium">Buscar em:</span>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="mp-check rounded" value="olx" checked><span class="text-xs">OLX</span></label>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="mp-check rounded" value="ml" checked><span class="text-xs">Mercado Livre</span></label>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="mp-check rounded" value="webmotors" checked><span class="text-xs">Webmotors</span></label>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mt-2 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-slate-600 font-medium">Cidade:</span>
+            <input id="f-city" type="text" placeholder="Ex: Campinas" class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-36 focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600 font-medium">Raio:</span>
+            <select id="f-radius" class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500">
+              <option value="0">Sem limite</option>
+              <option value="20">20 km</option>
+              <option value="50">50 km</option>
+              <option value="100" selected>100 km</option>
+              <option value="200">200 km</option>
+              <option value="500">500 km</option>
+            </select>
+          </div>
+          <span class="text-[11px] text-slate-400">Preencha a cidade pra filtrar por distância</span>
+        </div>
+      </form>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <div id="status" class="mb-4 text-sm text-slate-600"></div>
+    <div id="loading" class="hidden flex-col items-center justify-center py-16">
+      <div class="spinner w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full mb-4"></div>
+      <p class="text-slate-600">Buscando em vários marketplaces e consultando FIPE...</p>
+      <p class="text-xs text-slate-400 mt-2">Pode levar 5-15 segundos</p>
+    </div>
+    <div id="empty" class="text-center py-20 text-slate-500">
+      <div class="text-6xl mb-4">🔍</div>
+      <p class="text-lg mb-1">Digite o nome de um veículo pra começar.</p>
+      <p class="text-sm text-slate-400">Buscamos na OLX, Mercado Livre e Webmotors com comparação FIPE.</p>
+    </div>
+    <div id="error" class="hidden bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-4"></div>
+    <section id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></section>
+  </main>
+
+  <template id="card-tpl">
+    <a target="_blank" class="card group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md hover:border-indigo-300 transition flex flex-col">
+      <div class="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+        <img class="w-full h-full object-cover group-hover:scale-105 transition" loading="lazy" referrerpolicy="no-referrer">
+        <span class="mp-badge absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur"></span>
+        <span class="rate absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md"></span>
+      </div>
+      <div class="p-4 flex-1 flex flex-col">
+        <h3 class="title font-semibold text-sm text-slate-900 truncate-2 mb-2 min-h-[2.5rem]"></h3>
+        <div class="meta text-xs text-slate-500 mb-3 flex items-center gap-1.5 flex-wrap"></div>
+        <div class="mt-auto flex items-baseline justify-between">
+          <span class="price text-lg font-bold text-slate-900"></span>
+          <span class="fipe text-xs text-slate-500"></span>
+        </div>
+      </div>
+    </a>
+  </template>
+
+  <script>
+    const el = id => document.getElementById(id);
+    const grid = el("grid"), loading = el("loading"), empty = el("empty"), errorBox = el("error"), statusEl = el("status"), tpl = el("card-tpl");
+    let currentTipo = "ambos";
+
+    const fmt = {
+      brl: v => v == null ? "—" : "R$ " + Number(v).toLocaleString("pt-BR"),
+      km: v => v == null ? "—" : Number(v).toLocaleString("pt-BR") + " km",
+    };
+
+    const rateClass = r => {
+      if (r >= 20) return "bg-emerald-500 text-white";
+      if (r >= 10) return "bg-emerald-100 text-emerald-800";
+      if (r >= 5)  return "bg-amber-100 text-amber-800";
+      return "bg-slate-100 text-slate-600";
+    };
+
+    const mpStyle = {
+      "OLX":            { bg: "bg-purple-600/90 text-white", label: "OLX" },
+      "Mercado Livre":  { bg: "bg-yellow-400/90 text-yellow-900", label: "ML" },
+      "Webmotors":      { bg: "bg-red-600/90 text-white", label: "WM" },
+    };
+
+    function setTipo(t) {
+      currentTipo = t;
+      document.querySelectorAll(".tipo-btn").forEach(b => {
+        const on = b.dataset.tipo === t;
+        b.classList.toggle("bg-indigo-600", on); b.classList.toggle("text-white", on); b.classList.toggle("font-medium", on);
+        b.classList.toggle("bg-white", !on); b.classList.toggle("text-slate-600", !on);
+      });
+    }
+    document.querySelectorAll(".tipo-btn").forEach(b => b.addEventListener("click", () => setTipo(b.dataset.tipo)));
+
+    function getMarketplaces() {
+      return [...document.querySelectorAll(".mp-check:checked")].map(c => c.value);
+    }
+
+    function renderResults(results, query) {
+      grid.innerHTML = "";
+      if (!results.length) {
+        empty.classList.remove("hidden");
+        empty.innerHTML = `<div class="text-6xl mb-4">😕</div><p class="text-lg mb-1">Nenhum resultado pra "${query}".</p><p class="text-sm text-slate-400">Tente outro termo, mude a categoria ou o estado.</p>`;
+        return;
+      }
+      empty.classList.add("hidden");
+      results.forEach(a => {
+        const node = tpl.content.cloneNode(true);
+        node.querySelector("a").href = a.Link;
+        const img = node.querySelector("img");
+        img.src = a.Foto || "https://placehold.co/400x300/f1f5f9/94a3b8?text=Sem+foto";
+        img.alt = a.Titulo || "";
+        node.querySelector(".title").textContent = a.Titulo || a.Modelo || "—";
+
+        const meta = node.querySelector(".meta");
+        const bits = [a.Ano, fmt.km(a["Km Rodado"])];
+        const loc = [a.Cidade, a.Estado].filter(Boolean).join("/");
+        if (loc) bits.push(loc);
+        if (a.Distancia != null) bits.push(`📍 ${a.Distancia} km`);
+        meta.innerHTML = bits.map(b => `<span>${b}</span>`).join('<span class="text-slate-300">·</span>');
+
+        node.querySelector(".price").textContent = fmt.brl(a.Preco);
+        node.querySelector(".fipe").textContent = a.fipe ? "FIPE " + fmt.brl(a.fipe) : "";
+
+        const mp = mpStyle[a.Marketplace] || { bg: "bg-slate-200 text-slate-700", label: a.Marketplace };
+        const badge = node.querySelector(".mp-badge");
+        badge.className = "mp-badge absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-md " + mp.bg;
+        badge.textContent = mp.label;
+
+        const rate = node.querySelector(".rate");
+        const r = a.rate || 0;
+        rate.textContent = r > 0 ? r + "% ↓" : "—";
+        rate.className = "rate absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md " + rateClass(r);
+
+        grid.appendChild(node);
+      });
+    }
+
+    async function doSearch(query) {
+      if (!query) return;
+      errorBox.classList.add("hidden"); empty.classList.add("hidden");
+      grid.innerHTML = "";
+      loading.classList.remove("hidden"); loading.classList.add("flex");
+      statusEl.textContent = "";
+      const t0 = Date.now();
+      try {
+        const mps = getMarketplaces().join(",");
+        const state = el("f-state").value;
+        const city = el("f-city").value.trim();
+        const radius = el("f-radius").value;
+        const params = new URLSearchParams({ q: query, tipo: currentTipo, state, marketplaces: mps });
+        if (city) { params.set("city", city); params.set("radius", radius); }
+        const r = await fetch("/api/search?" + params.toString());
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Erro " + r.status);
+        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+        statusEl.textContent = `${data.count || 0} resultado(s) em ${elapsed}s`;
+        renderResults(data.results || [], query);
+      } catch (e) {
+        errorBox.textContent = "Erro ao buscar: " + e.message;
+        errorBox.classList.remove("hidden"); empty.classList.add("hidden");
+      } finally {
+        loading.classList.add("hidden"); loading.classList.remove("flex");
+      }
+    }
+
+    el("search-form").addEventListener("submit", e => { e.preventDefault(); doSearch(el("q").value.trim()); });
+  </script>
+</body>
+</html>
