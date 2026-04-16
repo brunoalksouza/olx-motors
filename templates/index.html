@@ -181,8 +181,13 @@
 
         const rate = node.querySelector(".rate");
         const r = a.rate || 0;
-        rate.textContent = r > 0 ? r + "% ↓" : "—";
-        rate.className = "rate absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md " + rateClass(r);
+        if (a.fipe) {
+          rate.textContent = r > 0 ? r + "% ↓" : "0%";
+          rate.className = "rate absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md " + rateClass(r);
+        } else {
+          rate.textContent = "Sem FIPE";
+          rate.className = "rate absolute top-2 right-2 text-[10px] font-medium px-2 py-1 rounded-md bg-slate-200 text-slate-500";
+        }
 
         grid.appendChild(node);
       });

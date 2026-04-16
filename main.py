@@ -684,7 +684,11 @@ def search_ads(
                 rows = _enrich_fipe(rows, vt)
                 all_rows.extend(rows)
 
-    all_rows = [r for r in all_rows if r.get("Preco") and r.get("fipe")]
+    all_rows = [r for r in all_rows if r.get("Preco")]
+    for r in all_rows:
+        if not r.get("fipe"):
+            r["fipe"] = None
+            r["rate"] = 0
     if city and radius_km > 0:
         all_rows = filter_by_radius(all_rows, city, radius_km)
     all_rows.sort(key=lambda x: x.get("rate", 0), reverse=True)
