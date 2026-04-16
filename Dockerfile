@@ -9,4 +9,4 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD gunicorn --bind 0.0.0.0:$PORT wsgi
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 wsgi:application"]
